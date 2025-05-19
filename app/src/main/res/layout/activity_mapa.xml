@@ -13,8 +13,6 @@
         android:layout_height="match_parent"
         tools:layout_editor_absoluteX="0dp"
         tools:layout_editor_absoluteY="0dp">
-
-
     </org.osmdroid.views.MapView>
 
     <TextView
@@ -25,6 +23,7 @@
         android:gravity="bottom|center"
         android:textSize="17dp"
         android:textStyle="bold"
+        android:padding="5dp"
         app:layout_constraintEnd_toEndOf="@+id/topAppBar"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />

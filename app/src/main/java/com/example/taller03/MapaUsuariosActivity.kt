@@ -1,41 +1,42 @@
 package com.example.taller03
 
+import adapters.UsuarioAdapter
 import android.app.UiModeManager
 import android.content.Context
-import android.content.Intent
 import android.content.IntentSender
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.location.Location
-
+import android.location.LocationListener
+import android.location.LocationManager
 import android.os.Bundle
 import android.os.Looper
-import android.util.Log
-import android.widget.PopupMenu
 import android.widget.Toast
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResultCallback
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.recyclerview.widget.LinearLayoutManager
-import com.example.taller03.databinding.ActivityMapaBinding
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.preference.PreferenceManager
+import com.example.taller03.databinding.ActivityMapaUsuariosBinding
 import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
-import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.LocationSettingsRequest
 import com.google.android.gms.location.LocationSettingsResponse
 import com.google.android.gms.location.Priority
 import com.google.android.gms.location.SettingsClient
 import com.google.android.gms.tasks.Task
-import com.google.android.material.appbar.MaterialToolbar
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
+import models.Usuario
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
@@ -43,15 +44,15 @@ import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.TilesOverlay
 
-class MapaActivity : AppCompatActivity() {
-    private lateinit var binding: ActivityMapaBinding
-
-    lateinit var map: MapView
+class MapaUsuariosActivity : AppCompatActivity() {
+    private lateinit var binding: ActivityMapaUsuariosBinding
+    private lateinit var map: MapView
+    private var marcadorUsuario: Marker? = null
+    private var marcadorActual: Marker? = null
     private val bogota = GeoPoint(4.62, -74.07)
 
-    private lateinit var auth: FirebaseAuth
-    private lateinit var database: DatabaseReference
-    private lateinit var disponibilidad: String
+    private var latitudUsuario = 0.0
+    private var longitudUsuario = 0.0
 
     //Location
     private lateinit var locationClient : FusedLocationProviderClient
@@ -84,95 +85,37 @@ class MapaActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityMapaBinding.inflate(layoutInflater)
+        binding = ActivityMapaUsuariosBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        Configuration.getInstance().load(this, androidx.preference.PreferenceManager.getDefaultSharedPreferences(this))
+        Configuration.getInstance().load(applicationContext, PreferenceManager.getDefaultSharedPreferences(applicationContext))
 
-        map = binding.Map
+        map = binding.mapView
         map.setTileSource(TileSourceFactory.MAPNIK)
         map.setMultiTouchControls(true)
-       // map.overlays.add(createOverlayEvents())
 
         // Inicializar cliente de ubicación
         locationClient = LocationServices.getFusedLocationProviderClient(this)
         locationRequest = createLocationRequest()
         locationCallback = createLocationCallback()
 
+        //Datos usurio del seguimiento
+        latitudUsuario = intent.getDoubleExtra("latitud", 0.0)
+        longitudUsuario = intent.getDoubleExtra("longitud", 0.0)
+        val nombre = intent.getStringExtra("nombre") ?: "Usuario"
+
         locationPermission.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
 
-        //Extraer datos de FireBase
-        auth = FirebaseAuth.getInstance()
-        database = FirebaseDatabase.getInstance().reference
-        val uid = auth.currentUser?.uid
+        val controller = map.controller
+        controller.setZoom(15.0)
+        controller.setCenter(GeoPoint(latitudUsuario, longitudUsuario))
 
-        if (uid == null) {
-            Toast.makeText(this, "Usuario no autenticado", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        database.child("usuarios").child(uid).get()
-            .addOnSuccessListener { snapshot ->
-                if (snapshot.exists()) {
-                    disponibilidad = snapshot.child("disponibilidad").getValue(String::class.java) ?: ""
-                    binding.disponibilidad.text = "$disponibilidad"
-                    if (disponibilidad == "Disponible") {
-                        binding.disponibilidad.setTextColor(Color.parseColor("#06C513"))
-                    } else {
-                        binding.disponibilidad.setTextColor(Color.parseColor("#9D0A0A"))
-                    }
-                } else {
-                    Toast.makeText(this, "No hay datos del usuario", Toast.LENGTH_SHORT).show()
-                }
-            }
-            .addOnFailureListener {
-                Toast.makeText(this, "Error al obtener datos del usuario", Toast.LENGTH_SHORT).show()
-            }
-
-        //Acciones del menu
-        val toolbar = findViewById<MaterialToolbar>(R.id.topAppBar)
-
-        toolbar.setNavigationOnClickListener {
-            val popup = PopupMenu(this, toolbar)
-            popup.menuInflater.inflate(R.menu.menu, popup.menu)
-
-            popup.setOnMenuItemClickListener { item ->
-                when (item.itemId) {
-                    R.id.usuarios_disponibles -> {
-                        startActivity(Intent(this, UsuariosDisponiblesActivity::class.java))
-                        true
-                    }
-                    R.id.establecer_disponible -> {
-                        if(disponibilidad == "No Disponible") {
-                            binding.disponibilidad.text = "Disponible"
-                            disponibilidad= "Disponible"
-                            binding.disponibilidad.setTextColor(Color.parseColor("#06C513"))
-                            database.child("usuarios").child(uid).child("disponibilidad").setValue("Disponible")
-                                .addOnSuccessListener { Toast.makeText(this, "Disponibilidad Actualizada", Toast.LENGTH_SHORT).show() }
-                                .addOnFailureListener { Toast.makeText(this, "Error al guardar disponibilidad", Toast.LENGTH_SHORT).show() }
-                        } else {
-                            binding.disponibilidad.text = "No Disponible"
-                            disponibilidad= "No Disponible"
-                            binding.disponibilidad.setTextColor(Color.parseColor("#9D0A0A"))
-                            database.child("usuarios").child(uid).child("disponibilidad").setValue("No Disponible")
-                                .addOnSuccessListener { Toast.makeText(this, "*Disponibilidad Actualizada", Toast.LENGTH_SHORT).show() }
-                                .addOnFailureListener { Toast.makeText(this, "Error al guardar disponibilidad", Toast.LENGTH_SHORT).show() }
-                        }
-
-                        true
-                    }
-                    R.id.cerrar_sesion -> {
-                        auth.signOut()
-                        val i = Intent(this, MainActivity::class.java)
-                        i.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                        startActivity(i)
-                        true
-                    }
-                    else -> false
-                }
-            }
-            popup.show()
-        }
+        // Marcador del usuario a que se le hace seguimiento
+        marcadorUsuario = Marker(map)
+        marcadorUsuario!!.position = GeoPoint(latitudUsuario, longitudUsuario)
+        marcadorUsuario!!.title = nombre
+        marcadorUsuario!!.icon = ContextCompat.getDrawable(this, R.drawable.ic_navigation)
+        map.overlays.add(marcadorUsuario)
     }
 
     override fun onResume() {
@@ -258,50 +201,33 @@ class MapaActivity : AppCompatActivity() {
             position = geoPoint
             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
             title = "Mi ubicación"
-            icon = ContextCompat.getDrawable(this@MapaActivity, R.drawable.ic_my_location1)
+            icon = ContextCompat.getDrawable(this@MapaUsuariosActivity, R.drawable.ic_my_location1)
         }
-
         map.overlays.clear()
         map.overlays.add(marcadorUsuario)
-        cargarPuntosDeInteres()
         map.invalidate()
     }
 
-    private fun cargarPuntosDeInteres() {
-        try {
-            // Leer el archivo desde assets
-            val inputStream = assets.open("locations.json")
-            val size = inputStream.available()
-            val buffer = ByteArray(size)
-            inputStream.read(buffer)
-            inputStream.close()
 
-            val json = String(buffer, Charsets.UTF_8)
-
-            // Parsear el JSON
-            val jsonObject = org.json.JSONObject(json)
-            val locationsArray = jsonObject.getJSONArray("locationsArray")
-
-            for (i in 0 until locationsArray.length()) {
-                val locationObj = locationsArray.getJSONObject(i)
-
-                val lat = locationObj.getDouble("latitude")
-                val lon = locationObj.getDouble("longitude")
-                val name = locationObj.getString("name")
-
-                val punto = GeoPoint(lat, lon)
-                val marcador = Marker(map).apply {
-                    position = punto
-                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                    title = name
-                    icon = ContextCompat.getDrawable(this@MapaActivity, R.drawable.ic_poi)
-                }
-
-                map.overlays.add(marcador)
-            }
-        } catch (e: Exception) {
-            Log.e("MapaActivity", "Error al cargar JSON: ${e.message}")
-            Toast.makeText(this, "No se pudieron cargar los puntos de interés", Toast.LENGTH_SHORT).show()
+    private fun actualizarUbicacionPropia(location: Location) {
+        if (marcadorActual == null) {
+            marcadorActual = Marker(map)
+            marcadorActual!!.icon = ContextCompat.getDrawable(this, R.drawable.ic_my_location1)
+            map.overlays.add(marcadorActual)
         }
+        marcadorActual!!.position = GeoPoint(location.latitude, location.longitude)
+        marcadorActual!!.title = "Tú"
+        map.invalidate()
     }
+
+    private fun actualizarDistancia(location: Location) {
+        val locUsuario = Location("").apply {
+            latitude = latitudUsuario
+            longitude = longitudUsuario
+        }
+
+        val distancia = location.distanceTo(locUsuario) // en metros
+        Toast.makeText(this, "Distancia: %.2f metros".format(distancia), Toast.LENGTH_SHORT).show()
+    }
+
 }

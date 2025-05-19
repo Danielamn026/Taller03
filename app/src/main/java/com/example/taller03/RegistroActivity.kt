@@ -139,6 +139,7 @@ class RegistroActivity : AppCompatActivity() {
                 "latitud" to latitudActual,
                 "longitud" to longitudActual,
                 "disponibilidad" to "No Disponible",
+                "imagenUrl" to "",
             )
 
             val database = Firebase.database.reference
