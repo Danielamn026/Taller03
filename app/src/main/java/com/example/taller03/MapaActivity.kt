@@ -2,13 +2,16 @@ package com.example.taller03
 
 import android.app.UiModeManager
 import android.content.Context
+import android.content.Intent
 import android.content.IntentSender
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.location.Location
 
 import android.os.Bundle
 import android.os.Looper
 import android.util.Log
+import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.activity.result.ActivityResultCallback
 import androidx.activity.result.IntentSenderRequest
@@ -16,6 +19,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.taller03.databinding.ActivityMapaBinding
 import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -28,7 +32,10 @@ import com.google.android.gms.location.LocationSettingsResponse
 import com.google.android.gms.location.Priority
 import com.google.android.gms.location.SettingsClient
 import com.google.android.gms.tasks.Task
-import org.json.JSONArray
+import com.google.android.material.appbar.MaterialToolbar
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.DatabaseReference
+import com.google.firebase.database.FirebaseDatabase
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
@@ -41,6 +48,10 @@ class MapaActivity : AppCompatActivity() {
 
     lateinit var map: MapView
     private val bogota = GeoPoint(4.62, -74.07)
+
+    private lateinit var auth: FirebaseAuth
+    private lateinit var database: DatabaseReference
+    private lateinit var disponibilidad: String
 
     //Location
     private lateinit var locationClient : FusedLocationProviderClient
@@ -91,11 +102,83 @@ class MapaActivity : AppCompatActivity() {
 
         locationPermission.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
 
+        //Extraer datos de FireBase
+        auth = FirebaseAuth.getInstance()
+        database = FirebaseDatabase.getInstance().reference
+        val uid = auth.currentUser?.uid
+
+        if (uid == null) {
+            Toast.makeText(this, "Usuario no autenticado", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        database.child("usuarios").child(uid).get()
+            .addOnSuccessListener { snapshot ->
+                if (snapshot.exists()) {
+                    disponibilidad = snapshot.child("disponibilidad").getValue(String::class.java) ?: ""
+                    binding.disponibilidad.text = "$disponibilidad"
+                    if (disponibilidad == "Disponible") {
+                        binding.disponibilidad.setTextColor(Color.parseColor("#06C513"))
+                    } else {
+                        binding.disponibilidad.setTextColor(Color.parseColor("#9D0A0A"))
+                    }
+                } else {
+                    Toast.makeText(this, "No hay datos del usuario", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .addOnFailureListener {
+                Toast.makeText(this, "Error al obtener datos del usuario", Toast.LENGTH_SHORT).show()
+            }
+
+        //Acciones del menu
+        val toolbar = findViewById<MaterialToolbar>(R.id.topAppBar)
+
+        toolbar.setNavigationOnClickListener {
+            val popup = PopupMenu(this, toolbar)
+            popup.menuInflater.inflate(R.menu.menu, popup.menu)
+
+            popup.setOnMenuItemClickListener { item ->
+                when (item.itemId) {
+                    R.id.usuarios_disponibles -> {
+                        val i = Intent(baseContext, UsuariosDisponiblesActivity::class.java)
+                        startActivity(i)
+                        true
+                    }
+                    R.id.establecer_disponible -> {
+                        if(disponibilidad == "No Disponible") {
+                            binding.disponibilidad.text = "Disponible"
+                            disponibilidad= "Disponible"
+                            binding.disponibilidad.setTextColor(Color.parseColor("#06C513"))
+                            database.child("usuarios").child(uid).child("disponibilidad").setValue("Disponible")
+                                .addOnSuccessListener { Toast.makeText(this, "Disponibilidad Actualizada", Toast.LENGTH_SHORT).show() }
+                                .addOnFailureListener { Toast.makeText(this, "Error al guardar disponibilidad", Toast.LENGTH_SHORT).show() }
+                        } else {
+                            binding.disponibilidad.text = "No Disponible"
+                            disponibilidad= "No Disponible"
+                            binding.disponibilidad.setTextColor(Color.parseColor("#9D0A0A"))
+                            database.child("usuarios").child(uid).child("disponibilidad").setValue("No Disponible")
+                                .addOnSuccessListener { Toast.makeText(this, "*Disponibilidad Actualizada", Toast.LENGTH_SHORT).show() }
+                                .addOnFailureListener { Toast.makeText(this, "Error al guardar disponibilidad", Toast.LENGTH_SHORT).show() }
+                        }
+
+                        true
+                    }
+                    R.id.cerrar_sesion -> {
+                        auth.signOut()
+                        val i = Intent(this, MainActivity::class.java)
+                        i.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                        startActivity(i)
+                        true
+                    }
+                    else -> false
+                }
+            }
+            popup.show()
+        }
     }
 
     override fun onResume() {
         super.onResume()
-
         map.onResume()
         map.controller.setZoom(18.0)
         map.controller.animateTo(bogota)
@@ -154,7 +237,6 @@ class MapaActivity : AppCompatActivity() {
         task.addOnSuccessListener {
             startLocationUpdates()
         }
-
         task.addOnFailureListener { exception ->
             if (exception is ResolvableApiException) {
                 try {
@@ -183,7 +265,6 @@ class MapaActivity : AppCompatActivity() {
 
         map.overlays.clear()
         map.overlays.add(marcadorUsuario)
-
         cargarPuntosDeInteres()
         map.invalidate()
     }
@@ -220,12 +301,9 @@ class MapaActivity : AppCompatActivity() {
 
                 map.overlays.add(marcador)
             }
-
         } catch (e: Exception) {
             Log.e("MapaActivity", "Error al cargar JSON: ${e.message}")
             Toast.makeText(this, "No se pudieron cargar los puntos de interés", Toast.LENGTH_SHORT).show()
         }
     }
-
-
 }

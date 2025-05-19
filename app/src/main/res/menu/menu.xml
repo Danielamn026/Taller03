@@ -1,0 +1,12 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/usuarios_disponibles"
+        android:title="Usuarios Disponibles" />
+    <item
+        android:id="@+id/establecer_disponible"
+        android:title="Establecer Disponibilidad" />
+    <item
+        android:id="@+id/cerrar_sesion"
+        android:title="Cerrar sesión" />
+</menu>
