@@ -7,6 +7,7 @@ import android.content.IntentSender
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.location.Location
+import android.os.Build
 
 import android.os.Bundle
 import android.os.Looper
@@ -186,6 +187,8 @@ class MapaActivity : AppCompatActivity() {
             }
             popup.show()
         }
+
+        verificarPermisoENotificar()
     }
 
     override fun onResume() {
@@ -329,10 +332,33 @@ class MapaActivity : AppCompatActivity() {
             Toast.makeText(this, "No se pudieron cargar los puntos de interés", Toast.LENGTH_SHORT).show()
         }
     }
+    private fun verificarPermisoENotificar() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 200)
+            } else {
+                iniciarServicio()
+            }
+        } else {
+            iniciarServicio()
+        }
+    }
 
-    private fun iniciarServicioUsuarioDisponible() {
+    private fun iniciarServicio() {
         val intent = Intent(this, UsuarioDisponibleService::class.java)
         startService(intent)
     }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 200 && grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            iniciarServicio()
+        }
+    }
+
 
 }
