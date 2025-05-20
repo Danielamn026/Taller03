@@ -123,8 +123,14 @@ class MapaUsuariosActivity : AppCompatActivity() {
                             map.overlays.add(marcadorUsuario)
                             map.controller.setZoom(15.0)
                             map.controller.setCenter(marcadorUsuario!!.position)
-                            map.invalidate()
+                        } else {
+                            val nuevaPosicion = GeoPoint(latitudUsuario, longitudUsuario)
+                            if (marcadorUsuario!!.position != nuevaPosicion) {
+                                marcadorUsuario!!.position = nuevaPosicion
+                                map.controller.animateTo(nuevaPosicion)
+                            }
                         }
+                        map.invalidate()
                         break
                     }
                 }
@@ -223,7 +229,7 @@ class MapaUsuariosActivity : AppCompatActivity() {
             map.overlays.add(marcadorActual)
         }
         marcadorActual!!.position = geoPoint
-        map.controller.animateTo(geoPoint)
+        //map.controller.animateTo(geoPoint)
         map.invalidate()
     }
 

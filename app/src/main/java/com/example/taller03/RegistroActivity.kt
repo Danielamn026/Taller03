@@ -1,16 +1,20 @@
 package com.example.taller03
 
+import android.app.Notification
 import android.content.Intent
 import android.content.IntentSender
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Looper
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.ActivityResultCallback
 import androidx.activity.result.IntentSenderRequest
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationManagerCompat
 import com.example.taller03.databinding.ActivityRegistroBinding
 import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -32,6 +36,8 @@ import java.util.regex.Pattern
 class RegistroActivity : AppCompatActivity() {
     private lateinit var binding: ActivityRegistroBinding
     private lateinit var auth: FirebaseAuth
+
+    private var notid = 0
 
     //Location
     private lateinit var locationClient : FusedLocationProviderClient
@@ -64,6 +70,8 @@ class RegistroActivity : AppCompatActivity() {
         }
     )
 
+
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityRegistroBinding.inflate(layoutInflater)
@@ -74,6 +82,8 @@ class RegistroActivity : AppCompatActivity() {
         locationRequest = createLocationRequest()
         locationCallback = createLocationCallback()
 
+
+        // Solicitar permiso de ubicación
         locationPermission.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
 
         auth = FirebaseAuth.getInstance()
@@ -97,6 +107,7 @@ class RegistroActivity : AppCompatActivity() {
             finish()
         }
     }
+
 
     private fun validarYRegistrarUsuario() {
         val nombre = binding.nombreRegistro.text.toString()

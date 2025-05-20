@@ -1,10 +1,14 @@
 package com.example.taller03
 
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.util.Patterns
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.ActivityResultCallback
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -16,10 +20,23 @@ class AutenticacionActivity : AppCompatActivity() {
     private lateinit var binding: ActivityAutenticacionBinding
     private lateinit var firebaseAuth: FirebaseAuth
 
+    //Permiso de Notificaciones
+    val notificationPermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+        ActivityResultCallback { isGranted ->
+            if (!isGranted) {
+                Toast.makeText(this, "Permiso de notificación denegado", Toast.LENGTH_SHORT).show()
+            }
+        }
+    )
+
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityAutenticacionBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
 
         firebaseAuth = FirebaseAuth.getInstance()
 

@@ -83,6 +83,17 @@ class MapaActivity : AppCompatActivity() {
         }
     )
 
+    //Permiso de Notificaciones
+    val notificationPermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+        ActivityResultCallback { isGranted ->
+            if (!isGranted) {
+                Toast.makeText(this, "Permiso de notificación denegado", Toast.LENGTH_SHORT).show()
+            }
+        }
+    )
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMapaBinding.inflate(layoutInflater)
@@ -101,6 +112,7 @@ class MapaActivity : AppCompatActivity() {
         locationCallback = createLocationCallback()
 
         locationPermission.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
+        notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
 
         //Extraer datos de FireBase
         auth = FirebaseAuth.getInstance()
