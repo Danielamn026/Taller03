@@ -21,7 +21,7 @@ class MainActivity : AppCompatActivity() {
 
         // Si el usuario ya inició sesión
         if (currentUser != null) {
-            // Solicita permiso si es necesario, y lanza el servicio luego
+            // Solicita permiso si es necesario
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                     requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 100)
@@ -48,10 +48,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun iniciarAppConUsuario() {
-        // Inicia el servicio de notificación
-        startService(Intent(this, UsuarioDisponibleService::class.java))
-
-        // Redirige al mapa
+        // Redirige al mapa (el servicio se iniciará desde MapaActivity)
         val intent = Intent(this, MapaActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(intent)
@@ -72,7 +69,7 @@ class MainActivity : AppCompatActivity() {
                 Log.d("Permisos", "Permiso de notificaciones denegado")
             }
 
-            // Inicia la app independientemente de la respuesta (el servicio hará verificación antes de mostrar notificación)
+            // Inicia la app independientemente de la respuesta
             iniciarAppConUsuario()
         }
     }

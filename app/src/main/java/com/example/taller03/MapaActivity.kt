@@ -329,4 +329,10 @@ class MapaActivity : AppCompatActivity() {
             Toast.makeText(this, "No se pudieron cargar los puntos de interés", Toast.LENGTH_SHORT).show()
         }
     }
+
+    private fun iniciarServicioUsuarioDisponible() {
+        val intent = Intent(this, UsuarioDisponibleService::class.java)
+        startService(intent)
+    }
+
 }
