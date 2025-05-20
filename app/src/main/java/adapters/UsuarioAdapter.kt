@@ -29,9 +29,8 @@ class UsuarioAdapter(private val context: Context, private val usuarios: List<Us
 
             btnUbicacion.setOnClickListener {
                 val intent = Intent(context, MapaUsuariosActivity::class.java)
-                intent.putExtra("latitud", usuario.latitud)
-                intent.putExtra("longitud", usuario.longitud)
-                intent.putExtra("nombre", "${usuario.nombre} ${usuario.apellido}")
+                intent.putExtra("correo", "${usuario.correo}")
+                intent.putExtra("nombre", "${usuario.nombre}")
                 context.startActivity(intent)
             }
         }

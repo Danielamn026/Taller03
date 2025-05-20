@@ -51,6 +51,7 @@ class MapaActivity : AppCompatActivity() {
 
     private lateinit var auth: FirebaseAuth
     private lateinit var database: DatabaseReference
+    private val userId = FirebaseAuth.getInstance().currentUser?.uid
     private lateinit var disponibilidad: String
 
     //Location
@@ -206,15 +207,27 @@ class MapaActivity : AppCompatActivity() {
     }
 
     private fun createLocationCallback(): LocationCallback {
-        val callback = object : LocationCallback() {
+        return object : LocationCallback() {
             override fun onLocationResult(result: LocationResult) {
                 super.onLocationResult(result)
-                result.lastLocation?.let {
-                    updateUI(it)
+                val newLocation = result.lastLocation
+
+                if (newLocation == null) {
+                    Toast.makeText(this@MapaActivity, "Ubicación no detectada", Toast.LENGTH_SHORT).show()
+                    return
                 }
+
+                database.child("usuarios").child(userId!!).child("latitud").setValue(newLocation.latitude)
+                database.child("usuarios").child(userId!!).child("longitud").setValue(newLocation.longitude)
+                    .addOnSuccessListener {
+                        Log.e("GeoHome", "Geo actualizados")
+                        updateUI(newLocation)
+                    }
+                    .addOnFailureListener {
+                        Log.e("GeoHome", "Error al actualizar geo")
+                    }
             }
         }
-        return callback
     }
 
     fun startLocationUpdates(){
@@ -251,7 +264,7 @@ class MapaActivity : AppCompatActivity() {
 
     private fun updateUI(location: Location) {
         val geoPoint = GeoPoint(location.latitude, location.longitude)
-        map.controller.setZoom(16.0)
+        //map.controller.setZoom(16.0)
         map.controller.setCenter(geoPoint)
 
         val marcadorUsuario = Marker(map).apply {

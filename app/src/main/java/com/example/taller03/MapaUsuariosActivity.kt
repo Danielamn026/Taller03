@@ -4,9 +4,11 @@ import android.app.UiModeManager
 import android.content.Context
 import android.content.IntentSender
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.location.Location
 import android.os.Bundle
 import android.os.Looper
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.result.ActivityResultCallback
 import androidx.activity.result.IntentSenderRequest
@@ -19,6 +21,13 @@ import com.example.taller03.databinding.ActivityMapaUsuariosBinding
 import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.location.*
 import com.google.android.gms.tasks.Task
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.DatabaseReference
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
+import models.Usuario
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
@@ -29,6 +38,10 @@ import org.osmdroid.views.overlay.TilesOverlay
 class MapaUsuariosActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMapaUsuariosBinding
     private lateinit var map: MapView
+
+    private lateinit var auth: FirebaseAuth
+    private lateinit var database: DatabaseReference
+    private val userId = FirebaseAuth.getInstance().currentUser?.uid
 
     private var marcadorUsuario: Marker? = null
     private var marcadorActual: Marker? = null
@@ -79,24 +92,47 @@ class MapaUsuariosActivity : AppCompatActivity() {
         locationRequest = createLocationRequest()
         locationCallback = createLocationCallback()
 
-        // Obtener datos del usuario a seguir
-        latitudUsuario = intent.getDoubleExtra("latitud", 0.0)
-        longitudUsuario = intent.getDoubleExtra("longitud", 0.0)
-        val nombre = intent.getStringExtra("nombre") ?: "Usuario"
+        //Extraer datos de FireBase
+        auth = FirebaseAuth.getInstance()
+        database = FirebaseDatabase.getInstance().reference
 
         // Lanzar solicitud de permisos
         locationPermission.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
 
-        // Marcador del usuario objetivo
-        marcadorUsuario = Marker(map).apply {
-            position = GeoPoint(latitudUsuario, longitudUsuario)
-            title = nombre
-            icon = ContextCompat.getDrawable(this@MapaUsuariosActivity, R.drawable.ic_navigation)
-            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-        }
-        map.overlays.add(marcadorUsuario)
-        map.controller.setZoom(15.0)
-        map.controller.setCenter(marcadorUsuario!!.position)
+        // Obtener datos del usuario a seguir
+        val correo = intent.getStringExtra("correo") ?: "Sin Correo"
+        val nombre = intent.getStringExtra("nombre") ?: "Sin Nombre"
+
+        val usuarioRef = database.child("usuarios")
+        usuarioRef.addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(dataSnapshot: DataSnapshot) {
+                for(snapshot in dataSnapshot.children) {
+                    val usuario = snapshot.getValue(Usuario::class.java)
+                    if (usuario != null && usuario.correo == correo) {
+                        latitudUsuario = usuario.latitud
+                        longitudUsuario = usuario.longitud
+
+                        //Marcador del usuario objetivo
+                        if (marcadorUsuario == null) {
+                            marcadorUsuario = Marker(map).apply {
+                                position = GeoPoint(latitudUsuario, longitudUsuario)
+                                title = nombre
+                                icon = ContextCompat.getDrawable(this@MapaUsuariosActivity, R.drawable.ic_poi)
+                                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                            }
+                            map.overlays.add(marcadorUsuario)
+                            map.controller.setZoom(15.0)
+                            map.controller.setCenter(marcadorUsuario!!.position)
+                            map.invalidate()
+                        }
+                        break
+                    }
+                }
+            }
+            override fun onCancelled(databaseError: DatabaseError) {
+                Toast.makeText(this@MapaUsuariosActivity, "Error al obtener datos del usuarioSeg", Toast.LENGTH_SHORT).show()
+            }
+        })
     }
 
     override fun onResume() {
@@ -123,10 +159,24 @@ class MapaUsuariosActivity : AppCompatActivity() {
     private fun createLocationCallback(): LocationCallback {
         return object : LocationCallback() {
             override fun onLocationResult(result: LocationResult) {
-                result.lastLocation?.let { location ->
-                    actualizarUbicacionPropia(location)
-                    actualizarDistancia(location)
+                super.onLocationResult(result)
+                val newLocation = result.lastLocation
+
+                if (newLocation == null) {
+                    Toast.makeText(this@MapaUsuariosActivity, "Ubicación no detectada", Toast.LENGTH_SHORT).show()
+                    return
                 }
+
+                database.child("usuarios").child(userId!!).child("latitud").setValue(newLocation.latitude)
+                database.child("usuarios").child(userId!!).child("longitud").setValue(newLocation.longitude)
+                    .addOnSuccessListener {
+                        Log.e("GeoMapaUsuario", "Geo actualizados")
+                    }
+                    .addOnFailureListener {
+                        Log.e("GeoMapaUsuario", "Error al actualizar geo")
+                    }
+                    actualizarUbicacionPropia(newLocation)
+                    actualizarDistancia(newLocation)
             }
         }
     }
@@ -172,9 +222,7 @@ class MapaUsuariosActivity : AppCompatActivity() {
             }
             map.overlays.add(marcadorActual)
         }
-
         marcadorActual!!.position = geoPoint
-
         map.controller.animateTo(geoPoint)
         map.invalidate()
     }
