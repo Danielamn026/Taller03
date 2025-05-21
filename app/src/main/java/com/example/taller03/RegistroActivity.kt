@@ -33,7 +33,7 @@ import java.util.regex.Pattern
 class RegistroActivity : AppCompatActivity() {
     private lateinit var binding: ActivityRegistroBinding
     private lateinit var auth: FirebaseAuth
-    private var uri: Uri? = null
+    private lateinit var uri: Uri
     private lateinit var database: DatabaseReference
     private lateinit var storageRef : StorageReference
 
@@ -49,11 +49,8 @@ class RegistroActivity : AppCompatActivity() {
     private val camaraLauncher = registerForActivityResult(
         ActivityResultContracts.TakePicture()
     ) {
-        if (it) {
-            uri?.let { nonNullUri -> loadImage(nonNullUri) }
-        }
+        if (it) loadImage(uri)
     }
-
     //Location
     private lateinit var locationClient : FusedLocationProviderClient
     private lateinit var locationRequest : LocationRequest
@@ -148,14 +145,9 @@ class RegistroActivity : AppCompatActivity() {
     }
 
     private fun abrirCamara() {
-        val file = File(filesDir, "picFromCamera.jpg")
-        if (!file.exists()) {
-            file.createNewFile()
-        }
+        val file = File(filesDir, "picFromCamera")
         uri = FileProvider.getUriForFile(this, "${packageName}.fileprovider", file)
-        uri?.let {
-            camaraLauncher.launch(it)
-        }
+        camaraLauncher.launch(uri)
     }
 
 
@@ -184,7 +176,7 @@ class RegistroActivity : AppCompatActivity() {
             .addOnCompleteListener(this) { task ->
                 if (task.isSuccessful) {
                     val user = auth.currentUser
-                    if (user != null && ::uri != null) {
+                    if (user != null && uri != null) {
                         subirImagenYGuardarUsuario(user.uid, nombre, apellidos, id, user.email ?: "", uri)
                     } else {
                         guardarDatosUsuario(nombre, apellidos, id, "")
