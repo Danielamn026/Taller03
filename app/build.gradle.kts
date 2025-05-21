@@ -47,6 +47,7 @@ dependencies {
     implementation(libs.material)
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
+    implementation(libs.firebase.firestore.ktx)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -61,5 +62,17 @@ dependencies {
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-auth")
     implementation ("com.google.firebase:firebase-database")
+    implementation ("com.google.firebase:firebase-messaging-ktx")
+    implementation ("com.google.firebase:firebase-storage-ktx")
+    //Picasso (Imagenes)
+    implementation ("com.squareup.picasso:picasso:2.8")
+    //Glide
+    implementation ("com.github.bumptech.glide:glide:4.15.1")
+    annotationProcessor ("com.github.bumptech.glide:compiler:4.15.1")
+    //JobIntentService
+    implementation ("androidx.core:core:1.12.0")
+    //ForeGround
+    implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+
 
 }

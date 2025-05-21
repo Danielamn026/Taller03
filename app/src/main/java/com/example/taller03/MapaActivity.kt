@@ -7,6 +7,7 @@ import android.content.IntentSender
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.location.Location
+import android.os.Build
 
 import android.os.Bundle
 import android.os.Looper
@@ -43,6 +44,7 @@ import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.TilesOverlay
 
+
 class MapaActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMapaBinding
 
@@ -51,13 +53,13 @@ class MapaActivity : AppCompatActivity() {
 
     private lateinit var auth: FirebaseAuth
     private lateinit var database: DatabaseReference
+    private val userId = FirebaseAuth.getInstance().currentUser?.uid
     private lateinit var disponibilidad: String
 
     //Location
     private lateinit var locationClient : FusedLocationProviderClient
     private lateinit var locationRequest : LocationRequest
     private lateinit var locationCallback : LocationCallback
-    private var currentLocation: GeoPoint? = null
 
     // Registra resultado para manejar activacion de GPS, si usuario acepta,se inician updates
     val locationSettings = registerForActivityResult(
@@ -83,6 +85,17 @@ class MapaActivity : AppCompatActivity() {
         }
     )
 
+    //Permiso de Notificaciones
+    val notificationPermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+        ActivityResultCallback { isGranted ->
+            if (!isGranted) {
+                Toast.makeText(this, "Permiso de notificación denegado", Toast.LENGTH_SHORT).show()
+            }
+        }
+    )
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMapaBinding.inflate(layoutInflater)
@@ -101,6 +114,7 @@ class MapaActivity : AppCompatActivity() {
         locationCallback = createLocationCallback()
 
         locationPermission.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
+        notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
 
         //Extraer datos de FireBase
         auth = FirebaseAuth.getInstance()
@@ -140,8 +154,7 @@ class MapaActivity : AppCompatActivity() {
             popup.setOnMenuItemClickListener { item ->
                 when (item.itemId) {
                     R.id.usuarios_disponibles -> {
-                        val i = Intent(baseContext, UsuariosDisponiblesActivity::class.java)
-                        startActivity(i)
+                        startActivity(Intent(this, UsuariosDisponiblesActivity::class.java))
                         true
                     }
                     R.id.establecer_disponible -> {
@@ -175,6 +188,10 @@ class MapaActivity : AppCompatActivity() {
             }
             popup.show()
         }
+        //UsuarioDisponibleService.enqueueWork(this, Intent(this, UsuarioDisponibleService::class.java))
+        val intent = Intent(this, UsuarioDisponibleService::class.java)
+        ContextCompat.startForegroundService(this, intent)
+        verificarPermisoENotificar()
     }
 
     override fun onResume() {
@@ -208,15 +225,27 @@ class MapaActivity : AppCompatActivity() {
     }
 
     private fun createLocationCallback(): LocationCallback {
-        val callback = object : LocationCallback() {
+        return object : LocationCallback() {
             override fun onLocationResult(result: LocationResult) {
                 super.onLocationResult(result)
-                result.lastLocation?.let {
-                    updateUI(it)
+                val newLocation = result.lastLocation
+
+                if (newLocation == null) {
+                    Toast.makeText(this@MapaActivity, "Ubicación no detectada", Toast.LENGTH_SHORT).show()
+                    return
                 }
+
+                database.child("usuarios").child(userId!!).child("latitud").setValue(newLocation.latitude)
+                database.child("usuarios").child(userId!!).child("longitud").setValue(newLocation.longitude)
+                    .addOnSuccessListener {
+                        Log.e("GeoHome", "Geo actualizados")
+                        updateUI(newLocation)
+                    }
+                    .addOnFailureListener {
+                        Log.e("GeoHome", "Error al actualizar geo")
+                    }
             }
         }
-        return callback
     }
 
     fun startLocationUpdates(){
@@ -253,7 +282,7 @@ class MapaActivity : AppCompatActivity() {
 
     private fun updateUI(location: Location) {
         val geoPoint = GeoPoint(location.latitude, location.longitude)
-        map.controller.setZoom(16.0)
+        //map.controller.setZoom(16.0)
         map.controller.setCenter(geoPoint)
 
         val marcadorUsuario = Marker(map).apply {
@@ -306,4 +335,33 @@ class MapaActivity : AppCompatActivity() {
             Toast.makeText(this, "No se pudieron cargar los puntos de interés", Toast.LENGTH_SHORT).show()
         }
     }
+    private fun verificarPermisoENotificar() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 200)
+            } else {
+                iniciarServicio()
+            }
+        } else {
+            iniciarServicio()
+        }
+    }
+
+    private fun iniciarServicio() {
+        val intent = Intent(this, UsuarioDisponibleService::class.java)
+        startService(intent)
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 200 && grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            iniciarServicio()
+        }
+    }
+
+
 }

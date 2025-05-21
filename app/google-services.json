@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "76884426873",
+    "firebase_url": "https://taller3-13f27-default-rtdb.firebaseio.com",
+    "project_id": "taller3-13f27",
+    "storage_bucket": "taller3-13f27.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:76884426873:android:7036a957df43d5ecbe14a8",
+        "android_client_info": {
+          "package_name": "com.example.taller03"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCFEkhmrogIZatZmCmmpgqyYsqCOztIvy0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

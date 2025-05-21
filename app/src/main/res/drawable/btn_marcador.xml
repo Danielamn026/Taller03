@@ -1,0 +1,17 @@
+<!-- btn_marcador.xml -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Fondo del botón -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#3F51B5" /> <!-- Color de fondo (verde oscuro) -->
+            <corners android:radius="20dp" />
+            <padding android:left="14dp" android:top="14dp"
+                android:right="14dp" android:bottom="14dp" />
+        </shape>
+    </item>
+
+    <!-- Ícono de marcador centrado -->
+    <item
+        android:drawable="@drawable/ic_marcador_blanco"
+        android:gravity="center" />
+</layer-list>
