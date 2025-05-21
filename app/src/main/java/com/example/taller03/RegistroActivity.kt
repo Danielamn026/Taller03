@@ -33,7 +33,7 @@ import java.util.regex.Pattern
 class RegistroActivity : AppCompatActivity() {
     private lateinit var binding: ActivityRegistroBinding
     private lateinit var auth: FirebaseAuth
-    private lateinit var uri: Uri
+    private var uri: Uri? = null
     private lateinit var database: DatabaseReference
     private lateinit var storageRef : StorageReference
 
@@ -49,8 +49,11 @@ class RegistroActivity : AppCompatActivity() {
     private val camaraLauncher = registerForActivityResult(
         ActivityResultContracts.TakePicture()
     ) {
-        if (it) loadImage(uri)
+        if (it) {
+            uri?.let { nonNullUri -> loadImage(nonNullUri) }
+        }
     }
+
     //Location
     private lateinit var locationClient : FusedLocationProviderClient
     private lateinit var locationRequest : LocationRequest
@@ -145,9 +148,14 @@ class RegistroActivity : AppCompatActivity() {
     }
 
     private fun abrirCamara() {
-        val file = File(filesDir, "picFromCamera")
+        val file = File(filesDir, "picFromCamera.jpg")
+        if (!file.exists()) {
+            file.createNewFile()
+        }
         uri = FileProvider.getUriForFile(this, "${packageName}.fileprovider", file)
-        camaraLauncher.launch(uri)
+        uri?.let {
+            camaraLauncher.launch(it)
+        }
     }
 
 
@@ -176,8 +184,8 @@ class RegistroActivity : AppCompatActivity() {
             .addOnCompleteListener(this) { task ->
                 if (task.isSuccessful) {
                     val user = auth.currentUser
-                    if (user != null && uri != null) {
-                        subirImagenYGuardarUsuario(user.uid, nombre, apellidos, id, user.email ?: "", uri)
+                    if (user != null && ::uri != null) {
+                            subirImagenYGuardarUsuario(user.uid, nombre, apellidos, id, user.email ?: "", uri)
                     } else {
                         guardarDatosUsuario(nombre, apellidos, id, "")
                     }
@@ -243,7 +251,10 @@ class RegistroActivity : AppCompatActivity() {
             userRef.setValue(datosUsuario)
                 .addOnSuccessListener {
                     Toast.makeText(baseContext, "Registro exitoso", Toast.LENGTH_SHORT).show()
-                    // Aquí continuar a la pantalla principal
+                    val intent = Intent(this, MapaActivity::class.java)
+                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    startActivity(intent)
+                    finish()
                 }
                 .addOnFailureListener { e ->
                     println("Error al guardar los datos del usuario: ${e.message}")
