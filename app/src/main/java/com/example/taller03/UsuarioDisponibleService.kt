@@ -12,65 +12,69 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.core.app.JobIntentService
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.pm.PackageManager
+import android.os.IBinder
+import android.widget.Toast
 
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.*
 import models.Usuario
 
-class UsuarioDisponibleService : JobIntentService(){
+class UsuarioDisponibleService : Service(){
 
-    companion object {
-        private const val JOB_ID = 1000
+    private var listenerRegistration: ListenerRegistration? = null
 
-        fun enqueueWork(context: Context, intent: Intent) {
-            enqueueWork(context, UsuarioDisponibleService::class.java, JOB_ID, intent)
-        }
+    @SuppressLint("ForegroundServiceType")
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        crearCanalNotificacion()
+
+        val notification = NotificationCompat.Builder(this, "canal_usuarios")
+            .setContentTitle("Usuario Disponible")
+            .setContentText("Un usuario cambio a disponible")
+            .setSmallIcon(R.drawable.ic_notificacion)
+            .build()
+
+        startForeground(1, notification)
+
+        iniciarEscuchaFirebase()
+
+        return START_STICKY // El sistema intenta reiniciar el servicio si lo mata
     }
 
-    override fun onCreate() {
-        super.onCreate()
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name = "Canal Usuarios"
-            val descriptionText = "Notificaciones de usuarios disponibles"
-            val importance = NotificationManager.IMPORTANCE_DEFAULT
-            val channel = NotificationChannel("Test", name, importance).apply {
-                description = descriptionText
-            }
-
-            val notificationManager: NotificationManager =
-                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
-        }
-
-    }
-
-    override fun onHandleWork(intent: Intent) {
+    private fun iniciarEscuchaFirebase() {
         val db = FirebaseFirestore.getInstance()
-
-        db.collection("usuarios")
+        listenerRegistration = db.collection("usuarios")
             .addSnapshotListener { snapshots, e ->
                 if (e != null || snapshots == null) return@addSnapshotListener
 
-                for (dc in snapshots.documentChanges) {
-                    if (dc.type == DocumentChange.Type.MODIFIED) {
-                        val usuario = dc.document.toObject(Usuario::class.java)
-                        if (usuario.disponibilidad == "Disponible") {
-                            lanzarNotificacion(applicationContext, usuario)
-                        }
+                for (doc in snapshots.documents) {
+                    val usuario = doc.toObject(Usuario::class.java)
+                    if (usuario != null && usuario.disponibilidad == "Disponible") {
+                        lanzarNotificacion(this, usuario)
                     }
                 }
             }
-
-        // Mantener el servicio "vivo" un rato para escuchar cambios
-        try {
-            Thread.sleep(10000) // Puedes ajustar este tiempo
-        } catch (e: InterruptedException) {
-            e.printStackTrace()
-        }
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        listenerRegistration?.remove() // Detener la escucha al destruir el servicio
+    }
+
+    override fun onBind(intent: Intent?): IBinder? = null
+
+    private fun crearCanalNotificacion() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                "canal_usuarios",
+                "Escucha de Usuarios",
+                NotificationManager.IMPORTANCE_LOW
+            )
+            val manager = getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(channel)
+        }
+    }
 
     private fun lanzarNotificacion(context: Context, usuario: Usuario) {
         val currentUser = FirebaseAuth.getInstance().currentUser
@@ -106,6 +110,5 @@ class UsuarioDisponibleService : JobIntentService(){
             notificationManager.notify(System.currentTimeMillis().toInt(), builder.build())
         }
     }
-
 
 }

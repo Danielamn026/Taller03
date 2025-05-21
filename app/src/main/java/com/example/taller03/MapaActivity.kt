@@ -44,6 +44,7 @@ import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.TilesOverlay
 
+
 class MapaActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMapaBinding
 
@@ -188,6 +189,8 @@ class MapaActivity : AppCompatActivity() {
             popup.show()
         }
         //UsuarioDisponibleService.enqueueWork(this, Intent(this, UsuarioDisponibleService::class.java))
+        val intent = Intent(this, UsuarioDisponibleService::class.java)
+        ContextCompat.startForegroundService(this, intent)
         verificarPermisoENotificar()
     }
 

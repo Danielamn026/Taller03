@@ -71,4 +71,8 @@ dependencies {
     annotationProcessor ("com.github.bumptech.glide:compiler:4.15.1")
     //JobIntentService
     implementation ("androidx.core:core:1.12.0")
+    //ForeGround
+    implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+
+
 }
