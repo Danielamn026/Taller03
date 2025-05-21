@@ -7,31 +7,31 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.IBinder
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
-import androidx.core.app.JobIntentService
 import android.Manifest
-import android.annotation.SuppressLint
 import android.content.pm.PackageManager
-import android.os.IBinder
-import android.widget.Toast
+import android.annotation.SuppressLint
 
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.*
+import com.google.firebase.database.*
 import models.Usuario
 
-class UsuarioDisponibleService : Service(){
+class UsuarioDisponibleService : Service() {
 
-    private var listenerRegistration: ListenerRegistration? = null
+    private lateinit var databaseReference: DatabaseReference
+    private val disponibilidadMap = mutableMapOf<String, String>() // idUsuario -> disponibilidad previa
 
     @SuppressLint("ForegroundServiceType")
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         crearCanalNotificacion()
 
         val notification = NotificationCompat.Builder(this, "canal_usuarios")
-            .setContentTitle("Usuario Disponible")
-            .setContentText("Un usuario cambio a disponible")
+            .setContentTitle("Escuchando usuarios")
+            .setContentText("El servicio está activo")
             .setSmallIcon(R.drawable.ic_notificacion)
             .build()
 
@@ -39,27 +39,36 @@ class UsuarioDisponibleService : Service(){
 
         iniciarEscuchaFirebase()
 
-        return START_STICKY // El sistema intenta reiniciar el servicio si lo mata
+        return START_STICKY
     }
 
     private fun iniciarEscuchaFirebase() {
-        val db = FirebaseFirestore.getInstance()
-        listenerRegistration = db.collection("usuarios")
-            .addSnapshotListener { snapshots, e ->
-                if (e != null || snapshots == null) return@addSnapshotListener
+        databaseReference = FirebaseDatabase.getInstance().getReference("usuarios")
 
-                for (doc in snapshots.documents) {
-                    val usuario = doc.toObject(Usuario::class.java)
-                    if (usuario != null && usuario.disponibilidad == "Disponible") {
-                        lanzarNotificacion(this, usuario)
+        databaseReference.addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                for (userSnapshot in snapshot.children) {
+                    val usuario = userSnapshot.getValue(Usuario::class.java) ?: continue
+                    val id = userSnapshot.key ?: continue
+                    val disponibilidadPrev = disponibilidadMap[id]
+                    val disponibilidadActual = usuario.disponibilidad
+
+                    if (disponibilidadPrev != "Disponible" && disponibilidadActual == "Disponible") {
+                        lanzarNotificacion(this@UsuarioDisponibleService, usuario)
                     }
+                    disponibilidadMap[id] = disponibilidadActual
                 }
             }
+
+            override fun onCancelled(error: DatabaseError) {
+                Toast.makeText(this@UsuarioDisponibleService, "Error en Firebase: ${error.message}", Toast.LENGTH_SHORT).show()
+            }
+        })
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        listenerRegistration?.remove() // Detener la escucha al destruir el servicio
+        // No hay que remover listeners explícitamente a menos que uses removeEventListener
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -92,9 +101,9 @@ class UsuarioDisponibleService : Service(){
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val builder = NotificationCompat.Builder(context, "Test")
+        val builder = NotificationCompat.Builder(context, "canal_usuarios")
             .setSmallIcon(R.drawable.ic_notificacion)
-            .setContentTitle("Nuevo usuario disponible")
+            .setContentTitle("Nuevo Usuario Disponible")
             .setContentText("${usuario.nombre} ${usuario.apellidos} ahora está disponible")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setContentIntent(pendingIntent)
@@ -110,5 +119,4 @@ class UsuarioDisponibleService : Service(){
             notificationManager.notify(System.currentTimeMillis().toInt(), builder.build())
         }
     }
-
 }
