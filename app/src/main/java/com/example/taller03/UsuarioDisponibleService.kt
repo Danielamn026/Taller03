@@ -19,6 +19,7 @@ import android.widget.Toast
 
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.*
+import com.google.firebase.firestore.FirebaseFirestore
 import models.Usuario
 
 class UsuarioDisponibleService : Service(){
