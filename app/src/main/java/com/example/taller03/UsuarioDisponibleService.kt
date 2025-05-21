@@ -90,7 +90,7 @@ class UsuarioDisponibleService : Service() {
 
         val intent = if (currentUser != null) {
             Intent(context, MapaUsuariosActivity::class.java).apply {
-                putExtra("usuario_id", usuario.identificacion)
+                putExtra("correo", usuario.correo)
             }
         } else {
             Intent(context, AutenticacionActivity::class.java)
