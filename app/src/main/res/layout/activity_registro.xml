@@ -178,7 +178,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="30dp">
 
-                <ImageView
+                <ImageButton
                     android:id="@+id/imagenRegistro"
                     android:layout_width="50dp"
                     android:layout_height="50dp"
