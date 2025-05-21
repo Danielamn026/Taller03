@@ -1,118 +1,111 @@
 package com.example.taller03
 
 import android.app.*
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Build
-import android.os.IBinder
-import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
+import androidx.core.app.JobIntentService
+import android.Manifest
+import android.content.pm.PackageManager
+
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.database.*
-import com.example.taller03.R
+import com.google.firebase.firestore.*
+import models.Usuario
 
-class UsuarioDisponibleService : Service() {
+class UsuarioDisponibleService : JobIntentService(){
 
-    private lateinit var dbRef: DatabaseReference
-    private lateinit var listener: ValueEventListener
-    private val canalId = "canal_usuarios"
-    private val usuariosNotificados = mutableSetOf<String>()
-    private var notid = 0
+    companion object {
+        private const val JOB_ID = 1000
+
+        fun enqueueWork(context: Context, intent: Intent) {
+            enqueueWork(context, UsuarioDisponibleService::class.java, JOB_ID, intent)
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
-        Log.d("Servicio", "Servicio creado")
 
-        dbRef = FirebaseDatabase.getInstance().getReference("usuarios")
-        crearCanal()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val name = "Canal Usuarios"
+            val descriptionText = "Notificaciones de usuarios disponibles"
+            val importance = NotificationManager.IMPORTANCE_DEFAULT
+            val channel = NotificationChannel("Test", name, importance).apply {
+                description = descriptionText
+            }
 
-        listener = object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                for (usuarioSnap in snapshot.children) {
-                    val uid = usuarioSnap.key ?: continue
-                    val disponible = usuarioSnap.child("disponible").getValue(Boolean::class.java) ?: false
-                    if (disponible && !usuariosNotificados.contains(uid)) {
-                        val nombre = usuarioSnap.child("nombre").getValue(String::class.java) ?: "Usuario"
-                        val latitud = usuarioSnap.child("latitud").getValue(Double::class.java) ?: 0.0
-                        val longitud = usuarioSnap.child("longitud").getValue(Double::class.java) ?: 0.0
+            val notificationManager: NotificationManager =
+                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
 
-                        usuariosNotificados.add(uid)
-                        val notification = buildNotification(
-                            "Usuario disponible",
-                            "$nombre está ahora disponible para seguimiento",
-                            R.drawable.ic_person, // usa el mismo ícono que en tu recurso
-                            Intent(this@UsuarioDisponibleService, MapaUsuariosActivity::class.java).apply {
-                                putExtra("uid", uid)
-                                putExtra("nombre", nombre)
-                                putExtra("latitud", latitud)
-                                putExtra("longitud", longitud)
-                            }
-                        )
-                        notify(notification)
+    }
+
+    override fun onHandleWork(intent: Intent) {
+        val db = FirebaseFirestore.getInstance()
+
+        db.collection("usuarios")
+            .addSnapshotListener { snapshots, e ->
+                if (e != null || snapshots == null) return@addSnapshotListener
+
+                for (dc in snapshots.documentChanges) {
+                    if (dc.type == DocumentChange.Type.MODIFIED) {
+                        val usuario = dc.document.toObject(Usuario::class.java)
+                        if (usuario.disponibilidad == "Disponible") {
+                            lanzarNotificacion(applicationContext, usuario)
+                        }
                     }
                 }
             }
 
-            override fun onCancelled(error: DatabaseError) {
-                Log.e("Servicio", "Error al leer: ${error.message}")
-            }
-        }
-
-        dbRef.addValueEventListener(listener)
-    }
-
-    private fun crearCanal() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val canal = NotificationChannel(
-                canalId,
-                "Usuarios disponibles",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Notifica cuando un usuario está disponible"
-            }
-
-            val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(canal)
+        // Mantener el servicio "vivo" un rato para escuchar cambios
+        try {
+            Thread.sleep(10000) // Puedes ajustar este tiempo
+        } catch (e: InterruptedException) {
+            e.printStackTrace()
         }
     }
 
-    private fun buildNotification(title: String, message: String, icon: Int, intent: Intent): Notification {
+
+    private fun lanzarNotificacion(context: Context, usuario: Usuario) {
+        val currentUser = FirebaseAuth.getInstance().currentUser
+
+        val intent = if (currentUser != null) {
+            Intent(context, MapaUsuariosActivity::class.java).apply {
+                putExtra("usuario_id", usuario.identificacion)
+            }
+        } else {
+            Intent(context, AutenticacionActivity::class.java)
+        }
+
         val pendingIntent = PendingIntent.getActivity(
-            this,
-            0,
-            intent,
+            context, 0, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        return NotificationCompat.Builder(this, canalId)
-            .setSmallIcon(icon)
-            .setContentTitle(title)
-            .setContentText(message)
+        val builder = NotificationCompat.Builder(context, "Test")
+            .setSmallIcon(R.drawable.ic_notificacion)
+            .setContentTitle("Nuevo usuario disponible")
+            .setContentText("${usuario.nombre} ${usuario.apellidos} ahora está disponible")
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .build()
-    }
 
-    private fun notify(notification: Notification) {
-        notid++
-        val notificationManager = NotificationManagerCompat.from(this)
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
-            notificationManager.notify(notid, notification)
-        } else {
-            Log.d("Servicio", "No tiene permiso para notificaciones")
+        val notificationManager = NotificationManagerCompat.from(context)
+
+        if (ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationManager.notify(System.currentTimeMillis().toInt(), builder.build())
         }
     }
 
 
-    override fun onDestroy() {
-        super.onDestroy()
-        dbRef.removeEventListener(listener)
-        Log.d("Servicio", "Servicio destruido")
-    }
-
-    override fun onBind(intent: Intent?): IBinder? = null
 }

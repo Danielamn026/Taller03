@@ -187,7 +187,7 @@ class MapaActivity : AppCompatActivity() {
             }
             popup.show()
         }
-
+        //UsuarioDisponibleService.enqueueWork(this, Intent(this, UsuarioDisponibleService::class.java))
         verificarPermisoENotificar()
     }
 

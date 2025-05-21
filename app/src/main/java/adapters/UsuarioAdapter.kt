@@ -26,7 +26,7 @@ class UsuarioAdapter(private val context: Context, private val usuarios: List<Us
     override fun onBindViewHolder(holder: UsuarioViewHolder, position: Int) {
         val usuario = usuarios[position]
         with(holder.binding) {
-            tvNombre.text = "${usuario.nombre} ${usuario.apellido}"
+            tvNombre.text = "${usuario.nombre} ${usuario.apellidos}"
             if (!usuario.imagenUrl.isNullOrEmpty()) {
                 Glide.with(context)
                     .load(usuario.imagenUrl)
