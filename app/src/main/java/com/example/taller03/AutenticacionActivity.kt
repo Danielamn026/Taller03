@@ -37,7 +37,6 @@ class AutenticacionActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
-
         firebaseAuth = FirebaseAuth.getInstance()
 
         binding.buttonIngresar.setOnClickListener {
@@ -58,6 +57,7 @@ class AutenticacionActivity : AppCompatActivity() {
             finish()
         }
     }
+
 
     private fun validarYAutenticarUsuario() {
         val email = binding.editTextEmail.text.toString().trim()
