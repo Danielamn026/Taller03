@@ -251,7 +251,10 @@ class RegistroActivity : AppCompatActivity() {
             userRef.setValue(datosUsuario)
                 .addOnSuccessListener {
                     Toast.makeText(baseContext, "Registro exitoso", Toast.LENGTH_SHORT).show()
-                    // Aquí continuar a la pantalla principal
+                    val intent = Intent(this, MapaActivity::class.java)
+                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    startActivity(intent)
+                    finish()
                 }
                 .addOnFailureListener { e ->
                     println("Error al guardar los datos del usuario: ${e.message}")
