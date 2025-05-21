@@ -47,6 +47,7 @@ dependencies {
     implementation(libs.material)
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
+    implementation(libs.firebase.storage)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -62,6 +63,13 @@ dependencies {
     implementation("com.google.firebase:firebase-auth")
     implementation ("com.google.firebase:firebase-database")
     implementation ("com.google.firebase:firebase-messaging-ktx")
+    implementation ("com.google.firebase:firebase-storage-ktx")
+    implementation ("com.google.firebase:firebase-auth-ktx:22.1.0")  // si usas Auth
+    implementation ("com.google.firebase:firebase-bom:32.1.0")// para versiones sincronizadas
     //Picasso (Imagenes)
     implementation ("com.squareup.picasso:picasso:2.8")
+    //Glide imagenes
+    implementation ("com.github.bumptech.glide:glide:4.13.0")
+    implementation ("com.github.bumptech.glide:glide:4.16.0")
+    annotationProcessor ("com.github.bumptech.glide:compiler:4.16.0")
 }
