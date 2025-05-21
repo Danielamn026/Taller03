@@ -10,31 +10,33 @@ import android.media.RingtoneManager
 import android.os.Build
 import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 
-
 const val channelId = "notification_channel"
 const val channelName = "com.example.taller03"
-class MyFirebaseMessagingService: FirebaseMessagingService() {
 
-    private val TAG = "MyFirebaseMsgService"
+class MyFirebaseMessagingService: FirebaseMessagingService() {
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
         val title: String?
         val body: String?
+        val correo: String?
 
         if (remoteMessage.data.isNotEmpty()) {
             title = remoteMessage.data["title"]
             body = remoteMessage.data["body"]
+            //correo = remoteMessage.data["correo"]
         } else {
             title = remoteMessage.notification?.title
             body = remoteMessage.notification?.body
+            //correo = null
         }
 
-        if (!title.isNullOrEmpty() && !body.isNullOrEmpty()) {
-            generateNotification(title, body)
+        if (!title.isNullOrEmpty() && !body.isNullOrEmpty() /*&& !correo.isNullOrEmpty()*/) {
+            generateNotification(title, body/*, correo*/)
         }
     }
 
@@ -48,8 +50,15 @@ class MyFirebaseMessagingService: FirebaseMessagingService() {
     }
 
     fun generateNotification(title: String, message: String){
+        val isUserLoggedIn = FirebaseAuth.getInstance().currentUser != null
 
-        val intent = Intent(this, MapaUsuariosActivity::class.java)
+        val intent = if (isUserLoggedIn) {
+            Intent(this, MapaUsuariosActivity::class.java).apply {
+                //putExtra("correo", userId)
+            }
+        } else {
+            Intent(this, AutenticacionActivity::class.java)
+        }
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
 
         val pendingIntentFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -83,23 +92,11 @@ class MyFirebaseMessagingService: FirebaseMessagingService() {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val notificationChannel = NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_HIGH).apply {
-                description = "Usuario ha cambiado su estado a disponible"
+                description = "Notificaciones de usuarios disponibles"
             }
             notificationManager.createNotificationChannel(notificationChannel)
         }
         notificationManager.notify(0, builder.build())
     }
 
-    override fun onNewToken(token: String) {
-        super.onNewToken(token)
-        // Aquí puedes enviar el nuevo token al servidor si es necesario
-        // Por ejemplo, puedes usar Firebase Realtime Database o Firestore
-        // para almacenar el token asociado al usuario actual.
-        // val userId = FirebaseAuth.getInstance().currentUser?.uid
-        // if (userId != null) {
-        //     FirebaseDatabase.getInstance().getReference("tokens")
-        //         .child(userId)
-        //         .setValue(token)
-        // }
-    }
 }
